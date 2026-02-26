@@ -113,6 +113,17 @@ const onSubmit = () => {
   location.assign(fullUrl.value)
 }
 
+const copyUrlToClipboard = async () => {
+  try {
+    await navigator.clipboard.writeText(fullUrl.value)
+    copyUrlLabel.value = 'Copied!'
+    setTimeout(() => { copyUrlLabel.value = 'Copy URL' }, 2000)
+  } catch {
+    copyUrlLabel.value = 'Copy URL'
+  }
+}
+const copyUrlLabel = ref('Copy URL')
+
 </script>
 
 <template>
@@ -263,6 +274,7 @@ const onSubmit = () => {
                   <label for="edit-title" class="form-label">Wall title:</label>
                   <div class="ms-5">
                     <input type="text" class="form-control" id="edit-title" v-model.lazy="config.title">
+                    <div class="form-text">Shown in the browser tab. Defaults to "Fediwall".</div>
                   </div>
                 </div>
 
@@ -307,6 +319,32 @@ const onSubmit = () => {
                   </div>
                 </div>
 
+                <div class="mb-3">
+                  <h6>Event branding <span class="fw-normal text-muted">(optional)</span></h6>
+                  <div class="ms-5">
+                    <div class="form-text mb-2">
+                      Add a logo or banner for conferences, events, or organisation displays.
+                      All fields are optional — leave blank to hide the branding bar entirely.
+                    </div>
+                    <label for="edit-logo" class="form-label">Logo image URL:</label>
+                    <input type="url" class="form-control mb-1" id="edit-logo"
+                      placeholder="https://example.com/logo.png"
+                      v-model.lazy="config.logoUrl">
+                    <div class="form-text mb-3">Small image shown on the left of the branding bar.</div>
+
+                    <label for="edit-banner-text" class="form-label">Banner text:</label>
+                    <input type="text" class="form-control mb-1" id="edit-banner-text"
+                      placeholder="My Event 2025"
+                      v-model.lazy="config.bannerText">
+                    <div class="form-text mb-3">Short title or tagline displayed next to the logo.</div>
+
+                    <label for="edit-banner-image" class="form-label">Banner background image URL:</label>
+                    <input type="url" class="form-control mb-1" id="edit-banner-image"
+                      placeholder="https://example.com/banner.jpg"
+                      v-model.lazy="config.bannerImageUrl">
+                    <div class="form-text">Full-width image used as the background of the branding bar.</div>
+                  </div>
+                </div>
 
               </div>
               <div class="tab-pane" id="ctab-advanced" aria-labelledby="btab-advanced" role="tabpanel">
@@ -324,6 +362,20 @@ const onSubmit = () => {
                   <div class="ms-5">
                     <input type="text" class="form-control" name="edit-limit" v-model.lazy="formLimit">
                     <div class="form-text">Limit number of results per API request. Increase only if your filters hide too many posts.</div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <h6>Share this wall</h6>
+                  <div class="ms-5">
+                    <div class="form-text mb-2">
+                      Copy the URL to share your current wall configuration with anyone, or bookmark it.
+                    </div>
+                    <div class="d-flex gap-2">
+                      <input type="text" class="form-control form-control-sm" readonly :value="fullUrl" aria-label="Wall URL">
+                      <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                        @click.prevent="copyUrlToClipboard">{{ copyUrlLabel }}</button>
+                    </div>
                   </div>
                 </div>
 

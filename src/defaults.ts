@@ -31,6 +31,7 @@ export const fallbackConfig: Config = {
 
     logoUrl: "",
     bannerText: "",
+    bannerImageUrl: "",
 }
 
 // URL for a site-config file that overrides the default configuration above, if present.

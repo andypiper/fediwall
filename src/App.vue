@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, onUpdated, provide, ref, watch } from 'vue';
-import { createFilterWrapper, debounceFilter, onKeyStroke, useDocumentVisibility, usePreferredDark, useWindowScroll, useWindowSize } from '@vueuse/core'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onKeyStroke, useDocumentVisibility, usePreferredDark, useWindowScroll } from '@vueuse/core'
 
 import { type Config, type Post } from '@/types';
 import { loadConfig } from '@/config';
@@ -53,16 +53,6 @@ watch(updatePaused, () => {
     restartUpdates()
   }
 })
-
-// Fix Masonry layout on updates, config changes or window resize events
-const fixLayoutNow = inject('redrawVueMasonry') as () => void
-const fixLayout = createFilterWrapper(debounceFilter(500, { maxWait: 500 }), () => {
-  console.debug("Updating masonry layout")
-  fixLayoutNow()
-})
-provide("fixLayout", fixLayout)
-onUpdated(fixLayout)
-watch([useWindowSize().width, config, allPosts], fixLayout, { deep: true })
 
 // Watch for a theme changes
 const isDarkPreferred = usePreferredDark()
@@ -237,6 +227,18 @@ const privacyLink = computed(() => {
 <template>
   <div id="page">
 
+    <!-- Branding bar: shown when any branding option is configured.
+         logoUrl   — small logo displayed on the left of the bar.
+         bannerText — short text beside the logo.
+         bannerImageUrl — used as a background image spanning the full bar width.
+         All three are optional; the bar only appears when at least one is set. -->
+    <div v-if="config?.bannerText || config?.logoUrl || config?.bannerImageUrl"
+         id="branding-bar"
+         :style="config?.bannerImageUrl ? { backgroundImage: `url('${config.bannerImageUrl}')` } : {}">
+      <img v-if="config?.logoUrl" :src="config.logoUrl" class="branding-logo" alt="Logo" />
+      <span v-if="config?.bannerText" class="branding-text">{{ config.bannerText }}</span>
+    </div>
+
     <header v-if="config?.showInfobar" class="secret-hover" style="cursor: context-menu" data-bs-toggle="modal"
       data-bs-target="#configModal" title="Click to edit wall settings">
       <span class="text-muted float-end secret">
@@ -253,9 +255,8 @@ const privacyLink = computed(() => {
     </aside>
 
     <main>
-      <div v-if="config && filteredPosts.length > 0" v-masonry transition-duration="1s" item-selector=".wall-item"
-        percent-position="true" id="wall">
-        <Card v-masonry-tile class="wall-item secret-hover" v-for="post in filteredPosts" :key="post.id" :post="post"
+      <div v-if="config && filteredPosts.length > 0" id="wall">
+        <Card class="wall-item secret-hover" v-for="post in filteredPosts" :key="post.id" :post="post"
           :config="config">
 
           <template v-slot:topleft>
@@ -343,6 +344,41 @@ body {
   background-color: var(--bs-light-bg-subtle);
 }
 
+/* ── Branding banner ────────────────────────────────────────────────────── */
+
+#branding-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  /* Fallback colour when no banner image is set */
+  background-color: var(--bs-primary-bg-subtle);
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid var(--bs-border-color-subtle);
+  min-height: 3.5rem;
+}
+
+.branding-logo {
+  max-height: 3rem;
+  width: auto;
+  object-fit: contain;
+  /* Subtle drop shadow so the logo reads on any background */
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+}
+
+.branding-text {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+  letter-spacing: 0.01em;
+  /* Legible on dark or image backgrounds */
+  text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
 #page footer {
   padding: 0.75em 1em;
   display: flex;
@@ -390,65 +426,46 @@ body {
   opacity: 0;
 }
 
+/* ── Wall layout — CSS multi-column (zero JS, no layout thrashing) ───────
+   Items flow top→bottom within each column, which is natural for a
+   display wall.  Column width is determined by the browser; ~320 px gives
+   4–6 columns on typical HD/QHD screens and collapses gracefully.
+
+   Progressive enhancement: browsers that already support the CSS Masonry
+   spec (Firefox with flag, Chrome Canary) get native masonry instead.    */
+
 #wall {
-  margin: 0 auto;
+  columns: 320px;
+  column-gap: 0;
+}
+
+@supports (grid-template-rows: masonry) {
+  #wall {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-rows: masonry;
+    columns: unset;
+    gap: 0;
+  }
 }
 
 .wall-item {
-  width: 10%;
+  break-inside: avoid;
+  display: block;
+  width: 100%;
 }
 
-@media (max-width: 180rem) {
-  .wall-item {
-    width: 12.5%;
-  }
-}
-
-@media (max-width: 160rem) {
-  .wall-item {
-    width: 14.7%;
-  }
-}
-
-@media (max-width: 140rem) {
-  .wall-item {
-    width: 16.6%;
-  }
-}
-
-@media (max-width: 120rem) {
-  .wall-item {
-    width: 20%;
-  }
-}
-
-@media (max-width: 100rem) {
-  .wall-item {
-    width: 25%;
-  }
-}
-
-@media (max-width: 80rem) {
-  .wall-item {
-    width: 33.3%;
-  }
-}
-
-@media (max-width: 60rem) {
+@media (max-width: 40rem) {
   #page main {
     padding: .5rem .5rem;
   }
 
-  .wall-item {
-    width: 50%;
+  #wall {
+    columns: 1;
   }
 }
 
-@media (max-width: 40rem) {
-  .wall-item {
-    width: 100%;
-  }
-}
+/* ── Vue default transition (status icon) ────────────────────────────── */
 
 .v-enter-active,
 .v-leave-active {

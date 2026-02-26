@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useElementVisibility, useIntervalFn } from '@vueuse/core'
-import { computed, inject, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { timeAgo as formatTimeAgo } from '@/utils'
 import { type Config, type Post } from '@/types';
 
@@ -27,7 +27,6 @@ const playVideo = computed(() => {
   return media.value?.type === "video" && props.config.playVideos && mediaIsVisible.value
 })
 
-const onMediaLoad = inject('fixLayout', () => undefined)
 
 </script>
 
@@ -47,13 +46,13 @@ const onMediaLoad = inject('fixLayout', () => undefined)
       <div class="card-body">
         <div v-if="config.showMedia && media" class="wall-media mb-3" ref="mediaElement">
           <img v-if="media.type === 'image'" :src="media.url" :alt="media.alt" :title="media.alt"
-            loading="lazy" @load="onMediaLoad">
+            loading="lazy">
           <video v-else-if="media.type === 'video'" muted loop :autoplay="playVideo"
-            :poster="media.preview" :alt="media.alt" :title="media.alt" @loadedmetadata="onMediaLoad">
+            :poster="media.preview" :alt="media.alt" :title="media.alt">
             <source v-if="playVideo" :src="media.url">
           </video>
           <a v-else-if="media.type==='card'" :href="media.url" target="_blank">
-            <img :src="media.preview" :alt="media.alt" :title="media.alt" loading="lazy" @load="onMediaLoad">
+            <img :src="media.preview" :alt="media.alt" :title="media.alt" loading="lazy">
           </a>
         </div>
         <p v-if="config.showText" class="card-text" v-dompurify-html="post.content"></p>

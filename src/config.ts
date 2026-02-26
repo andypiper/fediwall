@@ -147,6 +147,11 @@ const parameterDefinitions: Array<ParamDef> = [
         from: (config: Partial<Config>, value: string) => config.bannerText = value.trim(),
         to: (config: Config) => config.bannerText ?? "",
     },
+    {
+        names: ["bannerimage", "bannerimg"],
+        from: (config: Partial<Config>, value: string) => config.bannerImageUrl = value.trim(),
+        to: (config: Config) => config.bannerImageUrl ?? "",
+    },
 
     // Other settings
 
@@ -285,6 +290,7 @@ export function sanitizeConfig(config: any): Config {
 
     result.logoUrl = (config?.logoUrl ?? fallback.logoUrl ?? "").trim()
     result.bannerText = (config?.bannerText ?? fallback.bannerText ?? "").trim()
+    result.bannerImageUrl = (config?.bannerImageUrl ?? fallback.bannerImageUrl ?? "").trim()
 
     return result as Config;
 }
