@@ -261,47 +261,59 @@ const brandingBarStyle = computed(() => {
 <template>
   <div id="page">
 
-    <!-- ── Branding bar ──────────────────────────────────────────────────
-         Shown when any branding option is configured.
-         logoUrl        — small logo on the left.
-         bannerText     — short text beside the logo.
-         bannerImageUrl — full-width background image.
-         bannerColor    — background colour (used when no image set).    -->
-    <div v-if="config?.bannerText || config?.logoUrl || config?.bannerImageUrl"
-         id="branding-bar"
+    <!-- ── Unified top bar ──────────────────────────────────────────────
+         Always rendered once config loads.  Three zones:
+           Left  — branding (logo + text), only when any branding is set.
+           Centre — info bar text, only when infobarPosition === "top".
+           Right  — view toggle (when posts exist) + settings gear.
+         Background styling (bannerColor / bannerImageUrl) applies to the
+         whole bar when branding is configured.                           -->
+    <div v-if="config" id="top-bar"
+         :class="{ 'top-bar-branded': config.bannerText || config.logoUrl || config.bannerImageUrl }"
          :style="brandingBarStyle">
-      <img v-if="config?.logoUrl" :src="config.logoUrl" class="branding-logo" alt="Logo" />
-      <span v-if="config?.bannerText" class="branding-text">{{ config.bannerText }}</span>
+
+      <!-- Brand -->
+      <div class="top-bar-brand">
+        <img v-if="config.logoUrl" :src="config.logoUrl" class="branding-logo" alt="Logo" />
+        <span v-if="config.bannerText" class="branding-text">{{ config.bannerText }}</span>
+      </div>
+
+      <!-- Info text (centre) -->
+      <div class="top-bar-info">
+        <span v-if="config.infobarPosition === 'top'" class="top-bar-infotext">
+          <InfoBar :config="config" />
+        </span>
+      </div>
+
+      <!-- Actions (right) -->
+      <div class="top-bar-actions">
+        <!-- Status indicator -->
+        <Transition>
+          <icon v-if="statusIsError" icon="triangle-exclamation" class="top-bar-status text-warning" :title="statusText" />
+          <icon v-else-if="updateInProgress" icon="spinner" spin class="top-bar-status text-muted" />
+        </Transition>
+
+        <!-- View toggle — only when there is something to show -->
+        <div v-if="filteredPosts.length > 0" class="btn-group" role="group" aria-label="View">
+          <button type="button" class="btn btn-sm"
+            :class="currentView === 'wall' ? 'btn-primary' : 'btn-outline-secondary'"
+            @click="currentView = 'wall'" title="Post wall">
+            <icon icon="table-cells" /><span class="d-none d-sm-inline"> Wall</span>
+          </button>
+          <button type="button" class="btn btn-sm"
+            :class="currentView === 'contributors' ? 'btn-primary' : 'btn-outline-secondary'"
+            @click="currentView = 'contributors'" title="Contributors">
+            <icon icon="users" /><span class="d-none d-sm-inline"> Contributors</span>
+          </button>
+        </div>
+
+        <!-- Settings -->
+        <button class="btn btn-sm btn-outline-secondary top-bar-settings"
+          data-bs-toggle="modal" data-bs-target="#configModal" title="Customize wall">
+          <icon icon="gear" />
+        </button>
+      </div>
     </div>
-
-    <!-- ── Info bar (top position) ─────────────────────────────────────── -->
-    <header v-if="config?.infobarPosition === 'top'" class="secret-hover" style="cursor: context-menu"
-      data-bs-toggle="modal" data-bs-target="#configModal" title="Click to edit wall settings">
-      <span class="text-muted float-end secret">
-        <icon icon="gear" />
-      </span>
-      <InfoBar :config="config" />
-    </header>
-
-    <!-- ── View toggle bar ────────────────────────────────────────────── -->
-    <div v-if="config && filteredPosts.length > 0" id="view-toggle">
-      <button class="btn btn-sm" :class="currentView === 'wall' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="currentView = 'wall'" title="Post wall">
-        <icon icon="table-cells" /> Wall
-      </button>
-      <button class="btn btn-sm" :class="currentView === 'contributors' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="currentView = 'contributors'" title="Contributors">
-        <icon icon="users" /> Contributors
-      </button>
-    </div>
-
-    <!-- ── Status indicator (top-right) ─────────────────────────────── -->
-    <aside id="status-row" class="position-absolute opacity-25">
-      <Transition>
-        <icon v-if="statusIsError" icon="triangle-exclamation" class="mx-1" :title="statusText" />
-        <icon v-else-if="updateInProgress" icon="spinner" spin class="mx-1" />
-      </Transition>
-    </aside>
 
     <!-- ── Main content ──────────────────────────────────────────────── -->
     <main>
@@ -370,12 +382,7 @@ const brandingBarStyle = computed(() => {
     </main>
 
     <!-- ── Info bar (bottom position) ─────────────────────────────────── -->
-    <div v-if="config?.infobarPosition === 'bottom'" id="infobar-bottom"
-      class="secret-hover" style="cursor: context-menu"
-      data-bs-toggle="modal" data-bs-target="#configModal" title="Click to edit wall settings">
-      <span class="text-muted float-end secret">
-        <icon icon="gear" />
-      </span>
+    <div v-if="config?.infobarPosition === 'bottom'" id="infobar-bottom">
       <InfoBar :config="config" />
     </div>
 
@@ -391,8 +398,6 @@ const brandingBarStyle = computed(() => {
         <button class="btn btn-link text-muted" @click="toggleTheme(); false">
           {{ actualTheme == "dark" ? "Light" : "Dark" }} mode
         </button>
-        <span class="text-muted" aria-hidden="true">·</span>
-        <button class="btn btn-link text-muted" data-bs-toggle="modal" data-bs-target="#configModal">Customize</button>
         <span class="text-muted" aria-hidden="true">·</span>
         <a href="https://github.com/defnull/fediwall" target="_blank" class="text-muted">
           Fediwall<span v-if="gitVersion"> {{ gitVersion }}</span>
@@ -457,60 +462,85 @@ body {
   opacity: 1;
 }
 
-#page header,
-#infobar-bottom {
-  padding: .5em .5em;
-  font-size: 1.2em;
-  display: block;
-  width: 100%;
-  text-align: center;
-  background-color: var(--bs-light-bg-subtle);
-}
+/* ── Unified top bar ─────────────────────────────────────────────────── */
 
-#infobar-bottom {
-  border-top: 1px solid var(--bs-border-color-subtle);
-}
-
-/* ── View toggle ─────────────────────────────────────────────────────── */
-
-#view-toggle {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--bs-body-bg);
-  border-bottom: 1px solid var(--bs-border-color-subtle);
-}
-
-/* ── Branding banner ────────────────────────────────────────────────────────── */
-
-#branding-bar {
+#top-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 0.75rem 1.5rem;
-  /* Fallback colour when no banner image or colour is set */
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  background-color: var(--bs-light-bg-subtle);
+  border-bottom: 1px solid var(--bs-border-color-subtle);
+  min-height: 2.8rem;
+}
+
+/* When branding is active, grow to accommodate logo + larger text */
+#top-bar.top-bar-branded {
+  padding: 0.6rem 1rem;
   background-color: var(--bs-primary-bg-subtle);
   background-size: cover;
   background-position: center;
-  border-bottom: 1px solid var(--bs-border-color-subtle);
   min-height: 3.5rem;
 }
 
+.top-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+/* Centre zone grows to fill available space, pushing actions to the right */
+.top-bar-info {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  font-size: 0.95em;
+  color: var(--bs-secondary-color);
+  /* Prevent very long info text overflowing on small screens */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.top-bar-status {
+  font-size: 0.9rem;
+  opacity: 0.45;
+}
+
 .branding-logo {
-  max-height: 3rem;
+  max-height: 2.6rem;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
 }
 
 .branding-text {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--bs-emphasis-color);
   letter-spacing: 0.01em;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  white-space: nowrap;
+}
+
+/* ── Info bar (bottom position) ──────────────────────────────────────── */
+
+#infobar-bottom {
+  padding: 0.4em 1em;
+  font-size: 0.95em;
+  text-align: center;
+  color: var(--bs-secondary-color);
+  background-color: var(--bs-light-bg-subtle);
+  border-top: 1px solid var(--bs-border-color-subtle);
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
