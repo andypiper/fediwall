@@ -17,11 +17,10 @@
 */
 
 import './assets/main.css'
-import 'bootstrap/dist/css/bootstrap.css'
+import './styles/bootstrap.scss'
 import 'bootstrap/dist/js/bootstrap.bundle.js'
 
 import { createApp } from 'vue'
-import { VueMasonryPlugin } from 'vue-masonry';
 import VueDOMPurifyHTML from 'vue-dompurify-html';
 
 // Register fontawesome icons

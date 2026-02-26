@@ -28,6 +28,9 @@ export const fallbackConfig: Config = {
     showText: true,
     showMedia: true,
     playVideos: true,
+
+    logoUrl: "",
+    bannerText: "",
 }
 
 // URL for a site-config file that overrides the default configuration above, if present.

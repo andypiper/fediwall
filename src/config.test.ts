@@ -168,6 +168,32 @@ describe('sanitizeConfig', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Branding config fields — RED: these will fail until fields are added
+// ---------------------------------------------------------------------------
+describe('branding config', () => {
+  it('sanitizeConfig provides empty-string defaults for branding fields', () => {
+    const cfg = sanitizeConfig({})
+    expect(cfg.logoUrl).toBe('')
+    expect(cfg.bannerText).toBe('')
+  })
+
+  it('sanitizeConfig preserves logoUrl', () => {
+    const cfg = sanitizeConfig({ logoUrl: 'https://example.com/logo.png' })
+    expect(cfg.logoUrl).toBe('https://example.com/logo.png')
+  })
+
+  it('sanitizeConfig trims whitespace from bannerText', () => {
+    const cfg = sanitizeConfig({ bannerText: '  My Event 2024  ' })
+    expect(cfg.bannerText).toBe('My Event 2024')
+  })
+
+  it('sanitizeConfig trims whitespace from logoUrl', () => {
+    const cfg = sanitizeConfig({ logoUrl: '  https://example.com/logo.png  ' })
+    expect(cfg.logoUrl).toBe('https://example.com/logo.png')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // fromQuery
 // ---------------------------------------------------------------------------
 describe('fromQuery', () => {
@@ -210,5 +236,15 @@ describe('fromQuery', () => {
   it('handles legacy "server" parameter', () => {
     const cfg = fromQuery('server=mastodon.social')
     expect(cfg.servers).toContain('mastodon.social')
+  })
+
+  it('parses logo URL from query string', () => {
+    const cfg = fromQuery('logo=https%3A%2F%2Fexample.com%2Flogo.png')
+    expect(cfg.logoUrl).toBe('https://example.com/logo.png')
+  })
+
+  it('parses bannerText from query string', () => {
+    const cfg = fromQuery('banner=My%20Event%202024')
+    expect(cfg.bannerText).toBe('My Event 2024')
   })
 })

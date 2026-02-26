@@ -137,6 +137,16 @@ const parameterDefinitions: Array<ParamDef> = [
         from: (config: Partial<Config>, value: string) => config.playVideos = fromBool(value),
         to: (config: Config) => toBool(config.playVideos),
     },
+    {
+        names: ["logo"],
+        from: (config: Partial<Config>, value: string) => config.logoUrl = value.trim(),
+        to: (config: Config) => config.logoUrl ?? "",
+    },
+    {
+        names: ["banner"],
+        from: (config: Partial<Config>, value: string) => config.bannerText = value.trim(),
+        to: (config: Config) => config.bannerText ?? "",
+    },
 
     // Other settings
 
@@ -272,6 +282,9 @@ export function sanitizeConfig(config: any): Config {
     result.playVideos = boolOr(config.playVideos, fallback.playVideos)
     if (!result.showMedia && !result.showText)
         result.showText = true
+
+    result.logoUrl = (config?.logoUrl ?? fallback.logoUrl ?? "").trim()
+    result.bannerText = (config?.bannerText ?? fallback.bannerText ?? "").trim()
 
     return result as Config;
 }

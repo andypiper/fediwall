@@ -4,6 +4,12 @@ import { replaceInText } from '@/utils'
 import DOMPurify from 'dompurify'
 
 /**
+ * Per-domain fetch timeout. If a domain does not respond within this window
+ * all remaining tasks for that domain are cancelled via AbortController.
+ */
+export const DOMAIN_TIMEOUT_MS = 15_000
+
+/**
  * Fetch unique posts from all sources (currently only Mastodon is implemented)
  */
 export type Progress = {
@@ -16,7 +22,7 @@ export type Progress = {
 
 export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) => void): Promise<Post[]> {
 
-    type Task = () => Promise<MastodonStatus[]>;
+    type Task = (signal: AbortSignal) => Promise<MastodonStatus[]>;
     let progress: Progress = {total: 0, started: 0, finished: 0, errors: [], posts: []}
 
     // Group tasks by domain (see below)
@@ -32,8 +38,8 @@ export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) =
         if (cfg.badWords.length) query.none = cfg.badWords.join(",")
         if (!cfg.showText) query.only_media = "True"
         for (const tag of cfg.tags) {
-            addTask(domain, async () => {
-                return await fetchJson(domain, `api/v1/timelines/tag/${encodeURIComponent(tag)}`, query)
+            addTask(domain, async (signal) => {
+                return await fetchJson(domain, `api/v1/timelines/tag/${encodeURIComponent(tag)}`, query, signal)
             })
         }
     }
@@ -45,8 +51,8 @@ export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) =
         const domains = domain ? [domain] : [...cfg.servers]
         for (const domain of domains) {
             if(domain === "fedi.buzz") continue
-            addTask(domain, async () => {
-                const localUser = await getLocalUser(user, domain)
+            addTask(domain, async (signal) => {
+                const localUser = await getLocalUser(user, domain, signal)
                 if (!localUser || !localUser.id) return [];
                 if (localUser.bot && cfg.hideBots && cfg.hideBoosts) return [];
 
@@ -54,7 +60,7 @@ export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) =
                 if (cfg.hideReplies) query.exclude_replies = "True"
                 if (cfg.hideBoosts) query.exclude_reblogs = "True"
                 if (!cfg.showText) query.only_media = "True"
-                return await fetchJson(domain, `api/v1/accounts/${encodeURIComponent(localUser.id)}/statuses`, query)
+                return await fetchJson(domain, `api/v1/accounts/${encodeURIComponent(localUser.id)}/statuses`, query, signal)
             })
         }
     }
@@ -63,8 +69,8 @@ export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) =
     if (cfg.loadTrends) {
         for (const domain of cfg.servers) {
             if(domain === "fedi.buzz") continue
-            addTask(domain, async () => {
-                return await fetchJson(domain, "api/v1/trends/statuses", { limit: cfg.limit })
+            addTask(domain, async (signal) => {
+                return await fetchJson(domain, "api/v1/trends/statuses", { limit: cfg.limit }, signal)
             })
         }
     }
@@ -78,8 +84,8 @@ export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) =
             if (!cfg.loadPublic) query.remote = "True"
             if (!cfg.loadFederated) query.local = "True"
             if (!cfg.showText) query.only_media = "True"
-            addTask(domain, async () => {
-                return await fetchJson(domain, "api/v1/timelines/public", query)
+            addTask(domain, async (signal) => {
+                return await fetchJson(domain, "api/v1/timelines/public", query, signal)
             })
         }
     }
@@ -107,32 +113,44 @@ export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) =
     // Be nice and not overwhelm servers with parallel requests.
     // Run tasks for the same domain in sequence instead, and wait between
     // requests for a small random amount of time.
+    // Each domain group gets its own AbortController that fires after
+    // DOMAIN_TIMEOUT_MS so a single slow server cannot stall the whole update.
     const groupedTasks = Object.entries(domainTasks)
         .map(([domain, tasks]) => {
             return async () => {
-                for (const [taskIndex, task] of tasks.entries()) {
-                    await sleep(Math.min(500, Math.random() * 100 * taskIndex))
-                    progress.started += 1;
-                    try {
-                        (await task())
-                            .map(status => fixLocalAcct(domain, status))
-                            .filter(status => filterStatus(cfg, status))
-                            .map(status => statusToWallPost(cfg, status))
-                            .forEach(addOrReplacePost)
-                    } catch (err: any) {
-                        let error = err instanceof Error ? err : new Error(err?.toString())
-                        progress.errors.push(error)
-                    } finally {
-                        progress.finished += 1
-                        onProgress(progress)
+                const controller = new AbortController()
+                const timeoutId = setTimeout(() => controller.abort(), DOMAIN_TIMEOUT_MS)
+
+                try {
+                    for (const [taskIndex, task] of tasks.entries()) {
+                        await sleep(Math.min(500, Math.random() * 100 * taskIndex))
+                        progress.started += 1;
+                        try {
+                            (await task(controller.signal))
+                                .map(status => fixLocalAcct(domain, status))
+                                .filter(status => filterStatus(cfg, status))
+                                .map(status => statusToWallPost(cfg, status))
+                                .forEach(addOrReplacePost)
+                        } catch (err: any) {
+                            const isAbort = err instanceof DOMException && err.name === 'AbortError'
+                            const error = isAbort
+                                ? new Error(`Timeout fetching from ${domain} (>${DOMAIN_TIMEOUT_MS / 1000}s)`)
+                                : (err instanceof Error ? err : new Error(err?.toString()))
+                            progress.errors.push(error)
+                            if (isAbort) break
+                        } finally {
+                            progress.finished += 1
+                            onProgress(progress)
+                        }
                     }
+                } finally {
+                    clearTimeout(timeoutId)
                 }
             }
         })
 
-    // Start all the domain-grouped tasks in parallel, so reach server can be
+    // Start all the domain-grouped tasks in parallel, so each server can be
     // processed as fast as its rate-limit allows.
-    // TODO: Add a timeout
     await Promise.allSettled(groupedTasks.map(task => task()))
 
     // Done. Return collected posts
@@ -144,12 +162,12 @@ export async function fetchPosts(cfg: Config, onProgress: (progress: Progress) =
  * Results are cached. Returns null if not found, or undefined on errors.
  */
 const accountCache: Record<string, MastodonAccount | null> = {}
-async function getLocalUser(user: string, domain: string): Promise<any> {
+async function getLocalUser(user: string, domain: string, signal?: AbortSignal): Promise<any> {
     const key = `${user}@${domain}`
 
     if (!Object.hasOwnProperty.call(accountCache, key)) {
         try {
-            accountCache[key] = (await fetchJson(domain, "api/v1/accounts/lookup", { acct: user })) as MastodonAccount
+            accountCache[key] = (await fetchJson(domain, "api/v1/accounts/lookup", { acct: user }, signal)) as MastodonAccount
         } catch (e) {
             if ((e as any).status === 404)
                 accountCache[key] = null;
@@ -163,7 +181,7 @@ async function getLocalUser(user: string, domain: string): Promise<any> {
  * Fetch a json resources from a given URL.
  * Automaticaly detect mastodon rate limits and wait and retry up to 3 times.
  */
-async function fetchJson(domain: string, path: string, query?: Record<string, any>) {
+async function fetchJson(domain: string, path: string, query?: Record<string, any>, signal?: AbortSignal) {
     let url = `https://${domain}/${path}`
     if (query && Object.keys(query).length) {
         const pairs = Object.entries(query).map(([key, value]) => [key, value.toString()])
@@ -174,7 +192,7 @@ async function fetchJson(domain: string, path: string, query?: Record<string, an
     let json: any;
 
     try {
-        rs = await fetch(url)
+        rs = await fetch(url, { signal })
 
         // Auto-retry rate limit errors
         let errCount = 0
@@ -191,7 +209,7 @@ async function fetchJson(domain: string, path: string, query?: Record<string, an
             }
 
             // Retry
-            rs = await fetch(url)
+            rs = await fetch(url, { signal })
         }
         json = await rs.json()
     } catch (e: any) {

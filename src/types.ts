@@ -24,6 +24,11 @@ export type Config = {
     showText: boolean,
     showMedia: boolean,
     playVideos: boolean,
+
+    /** URL for a logo image shown in the header (for event branding). */
+    logoUrl: string,
+    /** Custom text shown as a prominent header banner (for event branding). */
+    bannerText: string,
 }
 
 export type Post = {

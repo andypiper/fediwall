@@ -1,0 +1,37 @@
+// Selective Bootstrap 5 import — only pull in what Fediwall actually uses.
+// Swapping from the full pre-built CSS (~236 kB / 32 kB gzip) to this file
+// drops the stylesheet to roughly a third of that size.
+
+// ── Core infrastructure ──────────────────────────────────────────────────────
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/root";           // --bs-* custom properties + data-bs-theme
+
+// ── Base ─────────────────────────────────────────────────────────────────────
+@import "bootstrap/scss/reboot";         // normalize / reset
+@import "bootstrap/scss/type";           // headings used in ConfigModal
+@import "bootstrap/scss/transitions";    // .fade, .show used by modal/dropdown
+
+// ── Components used by Fediwall ───────────────────────────────────────────────
+@import "bootstrap/scss/buttons";        // .btn, .btn-link, .btn-primary …
+@import "bootstrap/scss/close";          // .btn-close (modal header)
+@import "bootstrap/scss/card";           // .card, .card-header, .card-body …
+@import "bootstrap/scss/dropdown";       // .dropdown, .dropdown-menu …
+@import "bootstrap/scss/nav";            // .nav, .nav-tabs, .nav-link, .tab-pane …
+@import "bootstrap/scss/modal";          // .modal, .modal-dialog …
+@import "bootstrap/scss/alert";          // .alert-warning in ConfigModal footer
+
+// ── Form controls used in ConfigModal ────────────────────────────────────────
+@import "bootstrap/scss/forms/labels";
+@import "bootstrap/scss/forms/form-text";
+@import "bootstrap/scss/forms/form-control";
+@import "bootstrap/scss/forms/form-select";
+@import "bootstrap/scss/forms/form-check";
+
+// ── Utility classes (.d-flex, .text-muted, .mb-3, .ms-5, …) ─────────────────
+@import "bootstrap/scss/utilities";
+@import "bootstrap/scss/helpers";
+@import "bootstrap/scss/utilities/api";  // generates the utility classes

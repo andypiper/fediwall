@@ -28,8 +28,7 @@
     "bootstrap": "^5.3.3",
     "dompurify": "^3.1.5",
     "vue": "^3.4.27",
-    "vue-dompurify-html": "^5.0.1",
-    "vue-masonry": "^0.16.0"
+    "vue-dompurify-html": "^5.0.1"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.10.3",
@@ -46,6 +45,7 @@
     "eslint-plugin-vue": "^9.26.0",
     "git-describe": "^4.1.1",
     "jsdom": "^28.1.0",
+    "sass": "^1.97.3",
     "terser": "^5.31.0",
     "typescript": "~5.4.5",
     "vite": "^6.3.5",

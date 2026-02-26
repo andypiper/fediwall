@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { filterStatus, buildBadWordRegex } from './sources'
+import { filterStatus, buildBadWordRegex, DOMAIN_TIMEOUT_MS } from './sources'
 import type { Config } from './types'
 
 // ---------------------------------------------------------------------------
@@ -64,6 +64,20 @@ function makeStatus(overrides: any = {}) {
     ...overrides,
   }
 }
+
+// ---------------------------------------------------------------------------
+// DOMAIN_TIMEOUT_MS — RED until constant is exported
+// ---------------------------------------------------------------------------
+describe('DOMAIN_TIMEOUT_MS', () => {
+  it('is exported as a positive number', () => {
+    expect(typeof DOMAIN_TIMEOUT_MS).toBe('number')
+    expect(DOMAIN_TIMEOUT_MS).toBeGreaterThan(0)
+  })
+
+  it('is at least 5 seconds (enough for slow servers)', () => {
+    expect(DOMAIN_TIMEOUT_MS).toBeGreaterThanOrEqual(5_000)
+  })
+})
 
 // ---------------------------------------------------------------------------
 // filterStatus — correctness
