@@ -298,12 +298,12 @@ const brandingBarStyle = computed(() => {
           <button type="button" class="btn btn-sm"
             :class="currentView === 'wall' ? 'btn-primary' : 'btn-outline-secondary'"
             @click="currentView = 'wall'" title="Post wall">
-            <icon icon="table-cells" /><span class="d-none d-sm-inline"> Wall</span>
+            <icon icon="table-cells" />
           </button>
           <button type="button" class="btn btn-sm"
             :class="currentView === 'contributors' ? 'btn-primary' : 'btn-outline-secondary'"
             @click="currentView = 'contributors'" title="Contributors">
-            <icon icon="users" /><span class="d-none d-sm-inline"> Contributors</span>
+            <icon icon="users" />
           </button>
         </div>
 
@@ -532,15 +532,32 @@ body {
   white-space: nowrap;
 }
 
-/* ── Info bar (bottom position) ──────────────────────────────────────── */
+/* ── Info bar (bottom position) — floating pill fixed to viewport bottom ── */
 
 #infobar-bottom {
-  padding: 0.4em 1em;
-  font-size: 0.95em;
-  text-align: center;
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  /* Pill shape */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.35em 1.1em;
+  border-radius: 999px;
+  font-size: 0.88em;
+  white-space: nowrap;
+  max-width: calc(100vw - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Glassy appearance */
+  background-color: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   color: var(--bs-secondary-color);
-  background-color: var(--bs-light-bg-subtle);
-  border-top: 1px solid var(--bs-border-color-subtle);
+  /* Ensure it doesn't obscure the footer on small screens */
+  pointer-events: none;
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
