@@ -9,6 +9,7 @@ let siteConfig: Config | undefined;
 let siteConfigSource: string | undefined = undefined;
 
 const themes = ["dark", "light", "auto"];
+const infoPositions = ["top", "bottom", "off"] as const;
 const boolYes = ["yes", "", "y", "true"];
 const boolNo = ["no", "n", "false"];
 
@@ -129,8 +130,14 @@ const parameterDefinitions: Array<ParamDef> = [
     },
     {
         names: ["info"],
-        from: (config: Partial<Config>, value: string) => config.showInfobar = fromBool(value),
-        to: (config: Config) => toBool(config.showInfobar),
+        from: (config: Partial<Config>, value: string) => {
+            const v = value.toLowerCase().trim()
+            if ((infoPositions as readonly string[]).includes(v))
+                config.infobarPosition = v as typeof infoPositions[number]
+            else
+                config.infobarPosition = fromBool(v) ? "top" : "off"
+        },
+        to: (config: Config) => config.infobarPosition ?? "top",
     },
     {
         names: ["autoplay"],
@@ -151,6 +158,11 @@ const parameterDefinitions: Array<ParamDef> = [
         names: ["bannerimage", "bannerimg"],
         from: (config: Partial<Config>, value: string) => config.bannerImageUrl = value.trim(),
         to: (config: Config) => config.bannerImageUrl ?? "",
+    },
+    {
+        names: ["bannercolor", "bc"],
+        from: (config: Partial<Config>, value: string) => config.bannerColor = value.trim(),
+        to: (config: Config) => config.bannerColor ?? "",
     },
 
     // Other settings
@@ -183,10 +195,9 @@ export function fromQuery(query: string): Config {
         params.set("servers", params.get("server")!)
         params.delete("server")
     }
-    if (params.get("info") === "top")
-        params.set("info", boolYes[0])
+    // Legacy: "hide" → "off", bare "yes"/"no" handled in param def
     if (params.get("info") === "hide")
-        params.set("info", boolNo[0])
+        params.set("info", "off")
 
     for (const { names, from } of parameterDefinitions) {
         const param = names.find(n => params.has(n))
@@ -254,8 +265,11 @@ export function sanitizeConfig(config: any): Config {
         console.warn("DEPRECATED: Config parameter 'server' is now an array and called 'servers'.");
         (config.servers ??= []).push(config.server);
     }
-    if (isString(config.info))
-        config.showinfo = config.info == "top"
+    // Migrate showInfobar boolean → infobarPosition string
+    if (typeof config.showInfobar === "boolean" && config.infobarPosition === undefined)
+        config.infobarPosition = config.showInfobar ? "top" : "off"
+    if (isString(config.info) && config.infobarPosition === undefined)
+        config.infobarPosition = config.info === "top" ? "top" : "off"
 
 
     const fallback = siteConfig || fallbackConfig;
@@ -281,7 +295,7 @@ export function sanitizeConfig(config: any): Config {
 
     result.title = config?.title || fallback.title
     result.theme = choice(themes, config.theme, fallback.theme)
-    result.showInfobar = boolOr(config.showInfo, fallback.showInfobar)
+    result.infobarPosition = choice(infoPositions, config.infobarPosition, fallback.infobarPosition)
     result.showText = boolOr(config.showText, fallback.showText)
     result.showMedia = boolOr(config.showMedia, fallback.showMedia)
     result.playVideos = boolOr(config.playVideos, fallback.playVideos)
@@ -291,6 +305,7 @@ export function sanitizeConfig(config: any): Config {
     result.logoUrl = (config?.logoUrl ?? fallback.logoUrl ?? "").trim()
     result.bannerText = (config?.bannerText ?? fallback.bannerText ?? "").trim()
     result.bannerImageUrl = (config?.bannerImageUrl ?? fallback.bannerImageUrl ?? "").trim()
+    result.bannerColor = (config?.bannerColor ?? fallback.bannerColor ?? "").trim()
 
     return result as Config;
 }

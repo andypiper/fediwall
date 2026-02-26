@@ -124,6 +124,17 @@ const copyUrlToClipboard = async () => {
 }
 const copyUrlLabel = ref('Copy URL')
 
+const brandingColorPresets = [
+  { value: '#1d4ed8', label: 'Blue' },
+  { value: '#7c3aed', label: 'Purple' },
+  { value: '#db2777', label: 'Pink' },
+  { value: '#dc2626', label: 'Red' },
+  { value: '#d97706', label: 'Amber' },
+  { value: '#16a34a', label: 'Green' },
+  { value: '#0f172a', label: 'Dark navy' },
+  { value: '#f8fafc', label: 'Near-white' },
+]
+
 </script>
 
 <template>
@@ -286,12 +297,18 @@ const copyUrlLabel = ref('Copy URL')
                       <option value="dark">Dark mode</option>
                       <option value="auto">Auto (browser default)</option>
                     </select>
-                    <div class="form-check mt-2">
-                      <input class="form-check-input" type="checkbox" id="edit-info" v-model="config.showInfobar">
-                      <label class="form-check-label" for="edit-info">
-                        Show info bar at the top
-                      </label>
-                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="edit-infobar" class="form-label">Info bar:</label>
+                  <div class="ms-5">
+                    <select class="form-select form-select-sm" id="edit-infobar" v-model="config.infobarPosition">
+                      <option value="top">Show at top (below branding)</option>
+                      <option value="bottom">Show at bottom (above footer)</option>
+                      <option value="off">Hidden</option>
+                    </select>
+                    <div class="form-text">Displays the current hashtags/accounts being shown.</div>
                   </div>
                 </div>
 
@@ -342,7 +359,23 @@ const copyUrlLabel = ref('Copy URL')
                     <input type="url" class="form-control mb-1" id="edit-banner-image"
                       placeholder="https://example.com/banner.jpg"
                       v-model.lazy="config.bannerImageUrl">
-                    <div class="form-text">Full-width image used as the background of the branding bar.</div>
+                    <div class="form-text mb-3">Full-width image used as the background of the branding bar. Takes priority over the colour below.</div>
+
+                    <label for="edit-banner-color" class="form-label">Banner background colour:</label>
+                    <div class="d-flex align-items-center gap-2">
+                      <input type="color" class="form-control form-control-color" id="edit-banner-color"
+                        v-model="config.bannerColor" title="Choose a background colour">
+                      <div class="d-flex flex-wrap gap-1">
+                        <button v-for="c in brandingColorPresets" :key="c.value" type="button"
+                          class="color-preset-btn btn btn-sm"
+                          :style="{ background: c.value, border: config.bannerColor === c.value ? '2px solid var(--bs-primary)' : '2px solid transparent' }"
+                          :title="c.label"
+                          @click="config.bannerColor = c.value"></button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                          title="Clear colour" @click="config.bannerColor = ''">✕</button>
+                      </div>
+                    </div>
+                    <div class="form-text">Used when no background image is set. Leave blank for the default Bootstrap colour.</div>
                   </div>
                 </div>
 
@@ -414,6 +447,14 @@ const copyUrlLabel = ref('Copy URL')
 .form-label,
 h6 {
   font-weight: bolder;
+}
+
+.color-preset-btn {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 </style>
 

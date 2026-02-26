@@ -19,7 +19,8 @@ export type Config = {
 
     title: string,
     theme: string,
-    showInfobar: boolean,
+    /** Where to show the info bar: "top" (under branding), "bottom" (above footer), or "off". */
+    infobarPosition: "top" | "bottom" | "off",
 
     showText: boolean,
     showMedia: boolean,
@@ -31,6 +32,8 @@ export type Config = {
     bannerText: string,
     /** URL for a full-width banner image displayed above the wall (optional). */
     bannerImageUrl: string,
+    /** Background colour of the branding bar when no banner image is set (CSS colour value). */
+    bannerColor: string,
 }
 
 export type Post = {

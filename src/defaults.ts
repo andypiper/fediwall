@@ -24,7 +24,7 @@ export const fallbackConfig: Config = {
 
     title: "Fediwall",
     theme: "auto",
-    showInfobar: true,
+    infobarPosition: "top",
     showText: true,
     showMedia: true,
     playVideos: true,
@@ -32,6 +32,7 @@ export const fallbackConfig: Config = {
     logoUrl: "",
     bannerText: "",
     bannerImageUrl: "",
+    bannerColor: "",
 }
 
 // URL for a site-config file that overrides the default configuration above, if present.

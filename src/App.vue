@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { onKeyStroke, useDocumentVisibility, usePreferredDark, useWindowScroll } from '@vueuse/core'
 
-import { type Config, type Post } from '@/types';
+import { type Config, type Post, type PostMedia } from '@/types';
 import { loadConfig } from '@/config';
 import { fallbackConfig, gitVersion } from '@/defaults'
 import { fetchPosts } from '@/sources'
@@ -10,6 +10,7 @@ import { fetchPosts } from '@/sources'
 import Card from './components/Card.vue';
 import ConfigModal from './components/ConfigModal.vue';
 import InfoBar from './components/InfoBar.vue';
+import PeopleView from './components/PeopleView.vue';
 import { whack } from './utils';
 
 const config = ref<Config>();
@@ -21,6 +22,14 @@ const updateInProgress = ref(false)
 
 const statusText = ref<string | undefined>("Initializing ...")
 const statusIsError = ref(false)
+
+// View toggle: "wall" | "contributors"
+const currentView = ref<'wall' | 'contributors'>('wall')
+
+// Lightbox
+const lightboxMedia = ref<PostMedia | null>(null)
+const openLightbox = (media: PostMedia) => { lightboxMedia.value = media }
+const closeLightbox = () => { lightboxMedia.value = null }
 
 var updateIntervalHandle: number;
 var lastUpdate = 0;
@@ -72,6 +81,7 @@ watch(() => config.value?.title, () => document.title = config.value?.title || f
 // Watch for a update interval changes
 watch(() => config.value?.interval, () => restartUpdates())
 
+// Keyboard shortcuts
 onKeyStroke(['w'], (e) => {
   if(!(e.target instanceof HTMLElement)) return;
   if(e.target instanceof HTMLInputElement ||
@@ -79,6 +89,10 @@ onKeyStroke(['w'], (e) => {
      e.target.isContentEditable)
      return;
   whack("#wall *", 1)
+})
+
+onKeyStroke(['Escape'], () => {
+  if (lightboxMedia.value) closeLightbox()
 })
 
 /**
@@ -186,6 +200,16 @@ const filteredPosts = computed(() => {
   return posts
 })
 
+/** True when the config has at least one content source defined. */
+const hasAnySources = computed(() => {
+  if (!config.value) return false
+  return config.value.tags.length > 0
+      || config.value.accounts.length > 0
+      || config.value.loadPublic
+      || config.value.loadFederated
+      || config.value.loadTrends
+})
+
 function toggle<T>(array: T[], value: T) {
   if (array.includes(value))
     array.splice(array.indexOf(value), 1)
@@ -222,31 +246,56 @@ const privacyLink = computed(() => {
   return "#"
 })
 
+/** Inline style for the branding bar background. */
+const brandingBarStyle = computed(() => {
+  if (!config.value) return {}
+  if (config.value.bannerImageUrl)
+    return { backgroundImage: `url('${config.value.bannerImageUrl}')` }
+  if (config.value.bannerColor)
+    return { backgroundColor: config.value.bannerColor }
+  return {}
+})
+
 </script>
 
 <template>
   <div id="page">
 
-    <!-- Branding bar: shown when any branding option is configured.
-         logoUrl   — small logo displayed on the left of the bar.
-         bannerText — short text beside the logo.
-         bannerImageUrl — used as a background image spanning the full bar width.
-         All three are optional; the bar only appears when at least one is set. -->
+    <!-- ── Branding bar ──────────────────────────────────────────────────
+         Shown when any branding option is configured.
+         logoUrl        — small logo on the left.
+         bannerText     — short text beside the logo.
+         bannerImageUrl — full-width background image.
+         bannerColor    — background colour (used when no image set).    -->
     <div v-if="config?.bannerText || config?.logoUrl || config?.bannerImageUrl"
          id="branding-bar"
-         :style="config?.bannerImageUrl ? { backgroundImage: `url('${config.bannerImageUrl}')` } : {}">
+         :style="brandingBarStyle">
       <img v-if="config?.logoUrl" :src="config.logoUrl" class="branding-logo" alt="Logo" />
       <span v-if="config?.bannerText" class="branding-text">{{ config.bannerText }}</span>
     </div>
 
-    <header v-if="config?.showInfobar" class="secret-hover" style="cursor: context-menu" data-bs-toggle="modal"
-      data-bs-target="#configModal" title="Click to edit wall settings">
+    <!-- ── Info bar (top position) ─────────────────────────────────────── -->
+    <header v-if="config?.infobarPosition === 'top'" class="secret-hover" style="cursor: context-menu"
+      data-bs-toggle="modal" data-bs-target="#configModal" title="Click to edit wall settings">
       <span class="text-muted float-end secret">
         <icon icon="gear" />
       </span>
       <InfoBar :config="config" />
     </header>
 
+    <!-- ── View toggle bar ────────────────────────────────────────────── -->
+    <div v-if="config && filteredPosts.length > 0" id="view-toggle">
+      <button class="btn btn-sm" :class="currentView === 'wall' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="currentView = 'wall'" title="Post wall">
+        <icon icon="table-cells" /> Wall
+      </button>
+      <button class="btn btn-sm" :class="currentView === 'contributors' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="currentView = 'contributors'" title="Contributors">
+        <icon icon="users" /> Contributors
+      </button>
+    </div>
+
+    <!-- ── Status indicator (top-right) ─────────────────────────────── -->
     <aside id="status-row" class="position-absolute opacity-25">
       <Transition>
         <icon v-if="statusIsError" icon="triangle-exclamation" class="mx-1" :title="statusText" />
@@ -254,10 +303,12 @@ const privacyLink = computed(() => {
       </Transition>
     </aside>
 
+    <!-- ── Main content ──────────────────────────────────────────────── -->
     <main>
-      <div v-if="config && filteredPosts.length > 0" id="wall">
+      <!-- Wall view -->
+      <div v-if="config && filteredPosts.length > 0 && currentView === 'wall'" id="wall">
         <Card class="wall-item secret-hover" v-for="post in filteredPosts" :key="post.id" :post="post"
-          :config="config">
+          :config="config" @open-media="openLightbox">
 
           <template v-slot:topleft>
             <div class="dropdown secret">
@@ -279,7 +330,54 @@ const privacyLink = computed(() => {
 
         </Card>
       </div>
+
+      <!-- Contributors view -->
+      <PeopleView v-else-if="config && filteredPosts.length > 0 && currentView === 'contributors'"
+        :posts="filteredPosts" />
+
+      <!-- Zero state: no sources configured -->
+      <div v-else-if="config && !hasAnySources && !updateInProgress" id="zero-state">
+        <div class="zero-state-card card mx-auto">
+          <div class="card-body text-center p-5">
+            <icon icon="rss" class="zero-state-icon text-muted mb-3" />
+            <h4 class="mb-2">Welcome to Fediwall</h4>
+            <p class="text-muted mb-4">
+              No content sources are configured yet. Add some hashtags, accounts, or timelines to
+              start streaming posts from the Fediverse.
+            </p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#configModal">
+              <icon icon="gear" class="me-2" />Set up your wall
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state: sources configured but no posts yet -->
+      <div v-else-if="config && hasAnySources && filteredPosts.length === 0 && !updateInProgress" id="zero-state">
+        <div class="zero-state-card card mx-auto">
+          <div class="card-body text-center p-5">
+            <icon icon="magnifying-glass" class="zero-state-icon text-muted mb-3" />
+            <h4 class="mb-2">No posts found</h4>
+            <p class="text-muted mb-4">
+              Posts matching your current filters haven't arrived yet, or your filters may be too strict.
+            </p>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#configModal">
+              <icon icon="gear" class="me-2" />Review settings
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
+
+    <!-- ── Info bar (bottom position) ─────────────────────────────────── -->
+    <div v-if="config?.infobarPosition === 'bottom'" id="infobar-bottom"
+      class="secret-hover" style="cursor: context-menu"
+      data-bs-toggle="modal" data-bs-target="#configModal" title="Click to edit wall settings">
+      <span class="text-muted float-end secret">
+        <icon icon="gear" />
+      </span>
+      <InfoBar :config="config" />
+    </div>
 
     <ConfigModal v-if="config" v-model="config" id="configModal" />
 
@@ -305,6 +403,24 @@ const privacyLink = computed(() => {
         <a :href="privacyLink" target="_blank" class="text-muted">Privacy</a>
       </nav>
     </footer>
+
+    <!-- ── Lightbox overlay ───────────────────────────────────────────── -->
+    <Teleport to="body">
+      <Transition name="lightbox">
+        <div v-if="lightboxMedia" class="lightbox-overlay" @click.self="closeLightbox"
+          role="dialog" aria-modal="true" aria-label="Media viewer">
+          <button class="lightbox-close btn btn-sm btn-outline-light" @click="closeLightbox"
+            aria-label="Close">
+            <icon icon="xmark" />
+          </button>
+          <img v-if="lightboxMedia.type === 'image'" :src="lightboxMedia.url"
+            :alt="lightboxMedia.alt" class="lightbox-media" />
+          <video v-else-if="lightboxMedia.type === 'video'" :src="lightboxMedia.url"
+            class="lightbox-media" controls autoplay muted loop />
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -331,11 +447,18 @@ body {
   opacity: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .secret-hover .secret {
+    transition: none;
+  }
+}
+
 .secret-hover:hover .secret {
   opacity: 1;
 }
 
-#page header {
+#page header,
+#infobar-bottom {
   padding: .5em .5em;
   font-size: 1.2em;
   display: block;
@@ -344,7 +467,22 @@ body {
   background-color: var(--bs-light-bg-subtle);
 }
 
-/* ── Branding banner ────────────────────────────────────────────────────── */
+#infobar-bottom {
+  border-top: 1px solid var(--bs-border-color-subtle);
+}
+
+/* ── View toggle ─────────────────────────────────────────────────────── */
+
+#view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bs-body-bg);
+  border-bottom: 1px solid var(--bs-border-color-subtle);
+}
+
+/* ── Branding banner ────────────────────────────────────────────────────────── */
 
 #branding-bar {
   display: flex;
@@ -352,7 +490,7 @@ body {
   justify-content: center;
   gap: 1rem;
   padding: 0.75rem 1.5rem;
-  /* Fallback colour when no banner image is set */
+  /* Fallback colour when no banner image or colour is set */
   background-color: var(--bs-primary-bg-subtle);
   background-size: cover;
   background-position: center;
@@ -364,7 +502,6 @@ body {
   max-height: 3rem;
   width: auto;
   object-fit: contain;
-  /* Subtle drop shadow so the logo reads on any background */
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
 }
 
@@ -373,7 +510,6 @@ body {
   font-weight: 600;
   color: var(--bs-emphasis-color);
   letter-spacing: 0.01em;
-  /* Legible on dark or image backgrounds */
   text-shadow: 0 1px 4px rgba(0,0,0,0.35);
 }
 
@@ -426,6 +562,13 @@ body {
   opacity: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .status-enter-active,
+  .status-leave-active {
+    transition: none;
+  }
+}
+
 /* ── Wall layout — CSS multi-column (zero JS, no layout thrashing) ───────
    Items flow top→bottom within each column, which is natural for a
    display wall.  Column width is determined by the browser; ~320 px gives
@@ -465,6 +608,75 @@ body {
   }
 }
 
+/* ── Zero / empty state ──────────────────────────────────────────────── */
+
+#zero-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem 1rem;
+}
+
+.zero-state-card {
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  border-radius: 16px;
+}
+
+.zero-state-icon {
+  font-size: 3rem;
+  display: block;
+}
+
+/* ── Lightbox overlay ────────────────────────────────────────────────── */
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.lightbox-media {
+  max-width: 95vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.lightbox-enter-active,
+.lightbox-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.lightbox-enter-from,
+.lightbox-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-enter-active,
+  .lightbox-leave-active {
+    transition: none;
+  }
+}
+
 /* ── Vue default transition (status icon) ────────────────────────────── */
 
 .v-enter-active,
@@ -475,5 +687,12 @@ body {
 .v-enter-from,
 .v-leave-to {
   opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-enter-active,
+  .v-leave-active {
+    transition: none;
+  }
 }
 </style>
