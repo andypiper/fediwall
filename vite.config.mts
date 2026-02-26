@@ -35,6 +35,22 @@ export default defineConfig({
             "@": fileURLToPath(new URL("./src", import.meta.url))
         }
     },
+    css: {
+        preprocessorOptions: {
+            scss: {
+                // Bootstrap 5.3 still uses legacy @import, global built-ins and the
+                // old if() syntax — all deprecated in Dart Sass 2.x but still working.
+                // Silence those warnings so the build output stays clean; they are
+                // Bootstrap's to fix, not ours.
+                silenceDeprecations: [
+                    'import',
+                    'global-builtin',
+                    'color-functions',
+                    'if-function',
+                ],
+            },
+        },
+    },
     build: {
         rollupOptions: {
             output: {

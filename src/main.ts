@@ -32,7 +32,6 @@ library.add(faGear, faSpinner, faTriangleExclamation)
 import App from '@/App.vue'
 const app = createApp(App)
 
-app.use(VueMasonryPlugin)
 app.component("icon", FontAwesomeIcon)
 app.use(VueDOMPurifyHTML, {
     defaults: {
