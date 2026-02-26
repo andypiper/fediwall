@@ -564,6 +564,9 @@ body {
 
 #page footer {
   padding: 0.75em 1em;
+  /* Extra bottom padding ensures footer links stay above the floating
+     bottom infobar pill (fixed, ~2rem tall, 1.25rem from viewport bottom) */
+  padding-bottom: 4rem;
   display: flex;
   flex-direction: column;
   align-items: center;
