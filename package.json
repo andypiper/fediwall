@@ -15,7 +15,10 @@
     "preview": "vite preview",
     "build": "vite build",
     "check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
-    "lint": "eslint ./src --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+    "lint": "eslint ./src --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.5.2",
@@ -24,7 +27,6 @@
     "@vueuse/core": "^10.10.0",
     "bootstrap": "^5.3.3",
     "dompurify": "^3.1.5",
-    "moment": "^2.30.1",
     "vue": "^3.4.27",
     "vue-dompurify-html": "^5.0.1",
     "vue-masonry": "^0.16.0"
@@ -37,14 +39,18 @@
     "@typescript-eslint/eslint-plugin": "^7.12.0",
     "@vitejs/plugin-legacy": "^6.1.1",
     "@vitejs/plugin-vue": "^5.0.5",
+    "@vitest/coverage-v8": "^4.0.18",
     "@vue/eslint-config-typescript": "^13.0.0",
+    "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.5.1",
     "eslint-plugin-vue": "^9.26.0",
     "git-describe": "^4.1.1",
+    "jsdom": "^28.1.0",
     "terser": "^5.31.0",
     "typescript": "~5.4.5",
     "vite": "^6.3.5",
     "vite-plugin-compression": "^0.5.1",
+    "vitest": "^4.0.18",
     "vue-tsc": "^2.0.19"
   }
 }

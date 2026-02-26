@@ -283,19 +283,26 @@ const privacyLink = computed(() => {
     <ConfigModal v-if="config" v-model="config" id="configModal" />
 
     <footer>
-      <aside class="opacity-50 text-center">
-        Status: {{ statusText || "OK" }}
-      </aside>
-      <button class="btn btn-link text-muted" @click="toggleTheme(); false">[{{ actualTheme == "dark" ? "Light" : "Dark"
-        }} mode]</button>
-      <button class="btn btn-link text-muted" data-bs-toggle="modal" data-bs-target="#configModal">[Customize]</button>
-      <div>
-        <a href="https://github.com/defnull/fediwall" target="_blank" class="mx-1 text-muted">Fediwall <span
-            v-if="gitVersion">{{ gitVersion }}</span></a>
-        - <a href="https://github.com/defnull/fediwall" target="_blank" class="mx-1">Github</a>
-        - <a href="https://github.com/defnull/fediwall#readme" target="_blank" class="mx-1">Documentation</a>
-        - <a :href="privacyLink" target="_blank" class="mx-1">Privacy policy</a>
-      </div>
+      <Transition name="status">
+        <aside v-if="statusText" class="status-text" :class="{ 'status-error': statusIsError }">
+          {{ statusText }}
+        </aside>
+      </Transition>
+      <nav class="footer-links">
+        <button class="btn btn-link text-muted" @click="toggleTheme(); false">
+          {{ actualTheme == "dark" ? "Light" : "Dark" }} mode
+        </button>
+        <span class="text-muted" aria-hidden="true">·</span>
+        <button class="btn btn-link text-muted" data-bs-toggle="modal" data-bs-target="#configModal">Customize</button>
+        <span class="text-muted" aria-hidden="true">·</span>
+        <a href="https://github.com/defnull/fediwall" target="_blank" class="text-muted">
+          Fediwall<span v-if="gitVersion"> {{ gitVersion }}</span>
+        </a>
+        <span class="text-muted" aria-hidden="true">·</span>
+        <a href="https://github.com/defnull/fediwall#readme" target="_blank" class="text-muted">Docs</a>
+        <span class="text-muted" aria-hidden="true">·</span>
+        <a :href="privacyLink" target="_blank" class="text-muted">Privacy</a>
+      </nav>
     </footer>
   </div>
 </template>
@@ -337,10 +344,50 @@ body {
 }
 
 #page footer {
-  padding: 1em;
-  display: block;
+  padding: 0.75em 1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4em;
   width: 100%;
-  text-align: center;
+  font-size: 0.85em;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em 0.5em;
+}
+
+.footer-links .btn-link {
+  padding: 0;
+  font-size: inherit;
+}
+
+.status-text {
+  font-size: 0.8em;
+  opacity: 0.6;
+  padding: 0.2em 0.75em;
+  border-radius: 999px;
+  background: var(--bs-secondary-bg);
+}
+
+.status-text.status-error {
+  opacity: 1;
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+}
+
+.status-enter-active,
+.status-leave-active {
+  transition: opacity 0.4s ease;
+}
+
+.status-enter-from,
+.status-leave-to {
+  opacity: 0;
 }
 
 #wall {

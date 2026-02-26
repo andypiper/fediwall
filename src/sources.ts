@@ -209,9 +209,25 @@ async function fetchJson(domain: string, path: string, query?: Record<string, an
 }
 
 /**
+ * Build (and cache) a RegExp for bad-word filtering.
+ * Compiling the regex is O(n) in the word list; caching means we only pay
+ * that cost once per unique word-set rather than once per post.
+ */
+const _badWordRegexCache = new Map<string, RegExp>()
+export function buildBadWordRegex(badWords: string[]): RegExp {
+    const key = badWords.join('\x00')
+    let re = _badWordRegexCache.get(key)
+    if (!re) {
+        re = new RegExp(`(?:\\b|^)(${badWords.map(regexEscape).join("|")})(?:\\b|$)`, 'i')
+        _badWordRegexCache.set(key, re)
+    }
+    return re
+}
+
+/**
  * Check if a mastodon status document should be accepted
  */
-const filterStatus = (cfg: Config, status: MastodonStatus) => {
+export const filterStatus = (cfg: Config, status: MastodonStatus) => {
     // Boosts are unwrapped so other filters check the actual status that is
     // going to be displayed, not the (mostly empty) boost-status.
     if (status.reblog) {
@@ -231,7 +247,7 @@ const filterStatus = (cfg: Config, status: MastodonStatus) => {
     if (cfg.hideReplies && status.in_reply_to_id) return false;
     if (cfg.hideBots && status.account?.bot) return false;
     if (cfg.badWords.length) {
-        const pattern = new RegExp(`(?:\\b|^)(${cfg.badWords.map(regexEscape).join("|")})(?:\\b|$)`, 'i');
+        const pattern = buildBadWordRegex(cfg.badWords)
         if (status.account?.display_name?.match(pattern)
             || status.account?.acct?.match(pattern)
             || status.content.match(pattern)

@@ -261,8 +261,8 @@ export function sanitizeConfig(config: any): Config {
     result.hideBots = boolOr(config.hideBots, fallback.hideBots)
     result.hideReplies = boolOr(config.hideReplies, fallback.hideReplies)
 
-    result.limit = Math.max(1, Math.min(100, config?.limit || fallback.limit))
-    result.interval = Math.max(1, Math.min(600, config?.interval || fallback.interval))
+    result.limit = Math.max(1, Math.min(100, config?.limit ?? fallback.limit))
+    result.interval = Math.max(1, Math.min(600, config?.interval ?? fallback.interval))
 
     result.title = config?.title || fallback.title
     result.theme = choice(themes, config.theme, fallback.theme)

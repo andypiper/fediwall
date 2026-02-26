@@ -69,6 +69,33 @@ export function replaceInText(root: Node, pattern: RegExp, replace: (m: RegExpMa
     return root;
 }
 
+/**
+ * Return a human-readable relative time string (e.g. "5 minutes ago").
+ * Replaces the moment.js dependency with ~800 bytes of logic.
+ */
+export function timeAgo(date: Date): string {
+    const seconds = Math.round((Date.now() - date.getTime()) / 1000)
+
+    if (seconds < 45) return 'just now'
+    if (seconds < 90) return 'a minute ago'
+
+    const minutes = Math.round(seconds / 60)
+    if (minutes < 45) return `${minutes} minutes ago`
+    if (minutes < 90) return 'an hour ago'
+
+    const hours = Math.round(minutes / 60)
+    if (hours < 22) return `${hours} hours ago`
+    if (hours < 36) return 'a day ago'
+
+    const days = Math.round(hours / 24)
+    if (days < 26) return `${days} days ago`
+    if (days < 46) return 'a month ago'
+    if (days < 320) return `${Math.round(days / 30)} months ago`
+    if (days < 548) return 'a year ago'
+
+    return `${Math.round(days / 365)} years ago`
+}
+
 export function whack(what:string, how_much: number) {
     const rand = (scale:number) => (Math.random() * 2 - 1) * scale * how_much;
     document
