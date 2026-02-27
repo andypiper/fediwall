@@ -309,6 +309,14 @@ const scrollToSection = (id: string) => {
                 </div>
               </div>
 
+              <div class="mb-3">
+                <label class="form-label">Top bar</label>
+                <div class="form-check mb-1">
+                  <input class="form-check-input" type="checkbox" id="edit-hide-toggle" v-model="config.hideViewToggle">
+                  <label class="form-check-label" for="edit-hide-toggle">Hide posts / contributors toggle buttons</label>
+                </div>
+              </div>
+
               <div class="mb-0">
                 <label class="form-label">
                   Event branding

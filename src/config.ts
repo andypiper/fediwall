@@ -90,6 +90,7 @@ const parameterDefinitions: Array<ParamDef> = [
             config.hideReplies = flags.includes("replies")
             config.hideBoosts = flags.includes("boosts")
             config.hideBots = flags.includes("bots")
+            config.hideViewToggle = flags.includes("toggle")
         },
         to: (config: Config) => {
             const flags: string[] = []
@@ -97,6 +98,7 @@ const parameterDefinitions: Array<ParamDef> = [
             if (config.hideReplies) flags.push("replies")
             if (config.hideBoosts) flags.push("boosts")
             if (config.hideBots) flags.push("bots")
+            if (config.hideViewToggle) flags.push("toggle")
             return flags.join(",")
         },
     },
@@ -299,6 +301,7 @@ export function sanitizeConfig(config: any): Config {
     result.showText = boolOr(config.showText, fallback.showText)
     result.showMedia = boolOr(config.showMedia, fallback.showMedia)
     result.playVideos = boolOr(config.playVideos, fallback.playVideos)
+    result.hideViewToggle = boolOr(config.hideViewToggle, fallback.hideViewToggle)
     if (!result.showMedia && !result.showText)
         result.showText = true
 

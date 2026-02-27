@@ -256,14 +256,40 @@ const privacyLink = computed(() => {
   return "#"
 })
 
-/** Inline style for the branding bar background. */
+/** Parse a #RRGGBB hex colour string into {r, g, b} components, or null on failure. */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = hex.replace('#', '').match(/.{2}/g)
+  if (!m || m.length < 3) return null
+  return { r: parseInt(m[0], 16), g: parseInt(m[1], 16), b: parseInt(m[2], 16) }
+}
+
+/** WCAG relative luminance (0 = black, 1 = white). */
+function relativeLuminance(r: number, g: number, b: number): number {
+  const linear = (c: number) => {
+    const s = c / 255
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  }
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+}
+
+/** Inline style for the branding bar background, plus CSS custom properties used to tint buttons. */
 const brandingBarStyle = computed(() => {
   if (!config.value) return {}
+  const style: Record<string, string> = {}
   if (config.value.bannerImageUrl)
-    return { backgroundImage: `url('${config.value.bannerImageUrl}')` }
-  if (config.value.bannerColor)
-    return { backgroundColor: config.value.bannerColor }
-  return {}
+    style.backgroundImage = `url('${config.value.bannerImageUrl}')`
+  if (config.value.bannerColor) {
+    style.backgroundColor = config.value.bannerColor
+    const rgb = hexToRgb(config.value.bannerColor)
+    if (rgb) {
+      const lum = relativeLuminance(rgb.r, rgb.g, rgb.b)
+      // --brand-color: the raw colour used for btn-primary bg
+      // --brand-fg: a contrasting foreground (white on dark, near-black on light)
+      style['--brand-color'] = config.value.bannerColor
+      style['--brand-fg'] = lum > 0.35 ? '#1a1a1a' : '#ffffff'
+    }
+  }
+  return style
 })
 
 </script>
@@ -279,7 +305,7 @@ const brandingBarStyle = computed(() => {
          Background styling (bannerColor / bannerImageUrl) applies to the
          whole bar when branding is configured.                           -->
     <div v-if="config" id="top-bar"
-         :class="{ 'top-bar-branded': config.bannerText || config.logoUrl || config.bannerImageUrl }"
+         :class="{ 'top-bar-branded': config.bannerText || config.logoUrl || config.bannerImageUrl, 'top-bar-color-branded': !!config.bannerColor }"
          :style="brandingBarStyle">
 
       <!-- Brand -->
@@ -303,8 +329,8 @@ const brandingBarStyle = computed(() => {
           <icon v-else-if="updateInProgress" icon="spinner" spin class="top-bar-status text-muted" />
         </Transition>
 
-        <!-- View toggle — only when there is something to show -->
-        <div v-if="filteredPosts.length > 0" class="btn-group" role="group" aria-label="View">
+        <!-- View toggle — only when there is something to show and not hidden by config -->
+        <div v-if="filteredPosts.length > 0 && !config.hideViewToggle" class="btn-group" role="group" aria-label="View">
           <button type="button" class="btn btn-sm"
             :class="currentView === 'wall' ? 'btn-primary' : 'btn-outline-secondary'"
             @click="currentView = 'wall'" title="Post wall">
@@ -538,6 +564,58 @@ body {
   letter-spacing: 0.01em;
   text-shadow: 0 1px 4px rgba(0,0,0,0.3);
   white-space: nowrap;
+}
+
+/* ── Settings gear: visible only on top-bar hover (like the original) ──── */
+
+.top-bar-settings {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+#top-bar:hover .top-bar-settings,
+.top-bar-settings:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Always visible on touch devices (no hover available) */
+@media (hover: none) {
+  .top-bar-settings {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* ── Branding-colour tinting for top-bar buttons ──────────────────────── */
+/* Applied only when bannerColor is set (top-bar-color-branded class).
+   --brand-color and --brand-fg are injected via inline style.            */
+
+#top-bar.top-bar-color-branded .btn-primary {
+  --bs-btn-color: var(--brand-fg, #fff);
+  --bs-btn-bg: var(--brand-color, #0d6efd);
+  --bs-btn-border-color: var(--brand-color, #0d6efd);
+  --bs-btn-hover-color: var(--brand-fg, #fff);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--brand-color, #0d6efd) 83%, #000);
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--brand-color, #0d6efd) 78%, #000);
+  --bs-btn-active-color: var(--brand-fg, #fff);
+  --bs-btn-active-bg: color-mix(in srgb, var(--brand-color, #0d6efd) 78%, #000);
+  --bs-btn-active-border-color: color-mix(in srgb, var(--brand-color, #0d6efd) 74%, #000);
+  --bs-btn-disabled-color: var(--brand-fg, #fff);
+  --bs-btn-disabled-bg: var(--brand-color, #0d6efd);
+  --bs-btn-disabled-border-color: var(--brand-color, #0d6efd);
+}
+
+#top-bar.top-bar-color-branded .btn-outline-secondary {
+  --bs-btn-color: var(--brand-fg, var(--bs-secondary-color));
+  --bs-btn-border-color: color-mix(in srgb, var(--brand-fg, #6c757d) 45%, transparent);
+  --bs-btn-hover-color: var(--brand-fg, #fff);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--brand-fg, #6c757d) 15%, transparent);
+  --bs-btn-hover-border-color: var(--brand-fg, #6c757d);
+  --bs-btn-active-color: var(--brand-fg, #fff);
+  --bs-btn-active-bg: color-mix(in srgb, var(--brand-fg, #6c757d) 25%, transparent);
+  --bs-btn-active-border-color: var(--brand-fg, #6c757d);
 }
 
 /* ── Info bar (bottom position) — floating pill fixed to viewport bottom ── */

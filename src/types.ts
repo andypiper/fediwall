@@ -26,6 +26,9 @@ export type Config = {
     showMedia: boolean,
     playVideos: boolean,
 
+    /** Hide the posts / contributors view-toggle buttons in the top bar. */
+    hideViewToggle: boolean,
+
     /** URL for a logo image shown in the branding bar (optional event branding). */
     logoUrl: string,
     /** Short text shown beside the logo in the branding bar (optional). */

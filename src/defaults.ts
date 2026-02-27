@@ -28,6 +28,7 @@ export const fallbackConfig: Config = {
     showText: true,
     showMedia: true,
     playVideos: true,
+    hideViewToggle: false,
 
     logoUrl: "",
     bannerText: "",
