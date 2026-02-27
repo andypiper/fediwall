@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { onKeyStroke, useDocumentVisibility, usePreferredDark, useWindowScroll } from '@vueuse/core'
+import { onKeyStroke, useDocumentVisibility, usePreferredDark, useWindowScroll, useWindowSize } from '@vueuse/core'
 
 import { type Config, type Post, type PostMedia } from '@/types';
 import { loadConfig } from '@/config';
@@ -42,6 +42,16 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stopUpdates()
+})
+
+// Wall column layout: distribute posts L-R across columns (matching old JS-masonry order).
+// Column count is derived from window width; each column gets every Nth post.
+const { width: windowWidth } = useWindowSize()
+const wallColumns = computed<Post[][]>(() => {
+  const n = Math.max(1, Math.floor(windowWidth.value / 320))
+  const cols: Post[][] = Array.from({ length: n }, () => [])
+  filteredPosts.value.forEach((post, i) => cols[i % n].push(post))
+  return cols
 })
 
 // Pause updates while tab/window is hidden or window is scrolled down
@@ -317,30 +327,32 @@ const brandingBarStyle = computed(() => {
 
     <!-- ── Main content ──────────────────────────────────────────────── -->
     <main>
-      <!-- Wall view -->
+      <!-- Wall view: posts distributed L-R across columns to match old JS-masonry order -->
       <div v-if="config && filteredPosts.length > 0 && currentView === 'wall'" id="wall">
-        <Card class="wall-item secret-hover" v-for="post in filteredPosts" :key="post.id" :post="post"
-          :config="config" @open-media="openLightbox">
+        <div class="wall-col" v-for="(col, ci) in wallColumns" :key="ci">
+          <Card class="wall-item secret-hover" v-for="post in col" :key="post.id" :post="post"
+            :config="config" @open-media="openLightbox">
 
-          <template v-slot:topleft>
-            <div class="dropdown secret">
-              <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown"
-                aria-expanded="false">...</button>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="#" @click.prevent="pin(post.id)">{{ post.pinned ? "Unpin" : "Pin"
-                    }}</a></li>
-                <li><a class="dropdown-item" href="#" @click.prevent="hide(post.id)">Hide Post</a></li>
-                <li v-if="post.author?.profile"><a class="dropdown-item" href="#"
-                    @click.prevent="hideAuthor(post.author?.profile)">Hide
-                    Author</a></li>
-                <li v-if="post.author?.profile"><a class="dropdown-item" href="#"
-                    @click.prevent="hideDomain(post.author?.profile)">Hide
-                    Domain</a></li>
-              </ul>
-            </div>
-          </template>
+            <template v-slot:topleft>
+              <div class="dropdown secret">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown"
+                  aria-expanded="false">...</button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" @click.prevent="pin(post.id)">{{ post.pinned ? "Unpin" : "Pin"
+                      }}</a></li>
+                  <li><a class="dropdown-item" href="#" @click.prevent="hide(post.id)">Hide Post</a></li>
+                  <li v-if="post.author?.profile"><a class="dropdown-item" href="#"
+                      @click.prevent="hideAuthor(post.author?.profile)">Hide
+                      Author</a></li>
+                  <li v-if="post.author?.profile"><a class="dropdown-item" href="#"
+                      @click.prevent="hideDomain(post.author?.profile)">Hide
+                      Domain</a></li>
+                </ul>
+              </div>
+            </template>
 
-        </Card>
+          </Card>
+        </div>
       </div>
 
       <!-- Contributors view -->
@@ -619,31 +631,23 @@ body {
   }
 }
 
-/* ── Wall layout — CSS multi-column (zero JS, no layout thrashing) ───────
-   Items flow top→bottom within each column, which is natural for a
-   display wall.  Column width is determined by the browser; ~320 px gives
-   4–6 columns on typical HD/QHD screens and collapses gracefully.
-
-   Progressive enhancement: browsers that already support the CSS Masonry
-   spec (Firefox with flag, Chrome Canary) get native masonry instead.    */
+/* ── Wall layout — flex columns with L-R card distribution ──────────────
+   Posts are distributed left-to-right across columns (matching the order
+   the old JS-masonry library used) by a Vue computed that round-robins
+   filteredPosts into N arrays. Each array is rendered as a .wall-col.
+   Column count = floor(windowWidth / 320), minimum 1.                   */
 
 #wall {
-  columns: 320px;
-  column-gap: 0;
+  display: flex;
+  align-items: flex-start;
 }
 
-@supports (grid-template-rows: masonry) {
-  #wall {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    grid-template-rows: masonry;
-    columns: unset;
-    gap: 0;
-  }
+.wall-col {
+  flex: 1;
+  min-width: 0;
 }
 
 .wall-item {
-  break-inside: avoid;
   display: block;
   width: 100%;
 }
@@ -651,10 +655,6 @@ body {
 @media (max-width: 40rem) {
   #page main {
     padding: .5rem .5rem;
-  }
-
-  #wall {
-    columns: 1;
   }
 }
 
