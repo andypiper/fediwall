@@ -74,6 +74,12 @@ const carouselId = computed(() => `carousel-${props.post.id}`)
                 <img v-if="m.type === 'image'" :src="m.url" :alt="m.alt" :title="m.alt"
                   loading="lazy" class="d-block w-100 media-clickable"
                   @click="emit('open-media', m)" />
+                <!-- First slide: respect autoplay setting + visibility; subsequent slides: show controls -->
+                <video v-else-if="m.type === 'video' && i === 0" muted loop
+                  :autoplay="playVideo" :controls="!playVideo"
+                  :poster="m.preview" :alt="m.alt" :title="m.alt" class="d-block w-100">
+                  <source v-if="playVideo || i > 0" :src="m.url">
+                </video>
                 <video v-else-if="m.type === 'video'" muted loop controls
                   :poster="m.preview" :alt="m.alt" :title="m.alt" class="d-block w-100">
                   <source :src="m.url">
