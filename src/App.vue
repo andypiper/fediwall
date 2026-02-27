@@ -509,10 +509,6 @@ body {
   text-align: center;
   font-size: 0.95em;
   color: var(--bs-secondary-color);
-  /* Prevent very long info text overflowing on small screens */
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .top-bar-actions {
@@ -552,17 +548,13 @@ body {
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
-  /* Pill shape */
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
+  /* Rounded card shape — radius stays reasonable when text wraps to 2+ lines */
+  display: inline-block;
   padding: 0.35em 1.1em;
-  border-radius: 999px;
+  border-radius: 1.5rem;
   font-size: 0.88em;
-  white-space: nowrap;
+  text-align: center;
   max-width: calc(100vw - 2rem);
-  overflow: hidden;
-  text-overflow: ellipsis;
   /* Glassy appearance */
   background-color: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
